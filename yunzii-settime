@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+# yunzii-b75-pro-max-clock: sets the time on the YUNZII B75 PRO MAX display from Linux
+# Copyright (C) 2026 Antenore Gatta
+# License GPL-3.0-or-later, see LICENSE
+import argparse
+import glob
+import os
+import select
+import sys
+from datetime import datetime
+
+VENDOR = "28E9"
+FRAME_LEN = 64
+EXIT_NO_DEVICE = 2
+
+
+def crc16(data):
+    n = 0xFFFF
+    for b in data:
+        n ^= b
+        for _ in range(8):
+            n = (n >> 1) ^ 0xA001 if n & 1 else n >> 1
+    return [n >> 8 & 255, n & 255]
+
+
+def frame(cmd, data=()):
+    length = len(data) if data else FRAME_LEN - 7
+    o = [cmd, 0, 0, length, 0, 0, 0, *data]
+    s = sum(o) & 0xFFFF
+    o[4], o[5] = s & 255, s >> 8
+    return bytes(o).ljust(FRAME_LEN, b"\0")
+
+
+def inner(cmd, n):
+    return [0xA5, 0x5A, cmd, 0, n, *crc16([cmd, 0, n])]
+
+
+def time_sequence(now):
+    hms = [now.hour, now.minute, now.second]
+    date = [now.year % 100, now.isoweekday(), now.month, now.day]
+    # the vendor tool repeats everything three times
+    return 3 * [
+        frame(0x40, inner(9, 3)), frame(0x41, hms), frame(0x42),
+        frame(0x40, inner(10, 4)), frame(0x41, date), frame(0x42),
+    ]
+
+
+def find_hidraw():
+    # the right channel is the 0xFF60 vendor collection, the same one VIA uses
+    for d in sorted(glob.glob("/sys/class/hidraw/hidraw*")):
+        dev = os.path.join(d, "device")
+        try:
+            if VENDOR not in open(os.path.join(dev, "uevent")).read().upper():
+                continue
+            if open(os.path.join(dev, "report_descriptor"), "rb").read(3) == b"\x06\x60\xff":
+                return "/dev/" + os.path.basename(d)
+        except OSError:
+            continue
+    return None
+
+
+def send(path, frames):
+    fd = os.open(path, os.O_RDWR)
+    try:
+        for f in frames:
+            while select.select([fd], [], [], 0)[0]:
+                os.read(fd, FRAME_LEN)
+            os.write(fd, f)
+            if not select.select([fd], [], [], 2)[0]:
+                sys.exit(f"no reply to command 0x{f[0]:02x}")
+            r = os.read(fd, FRAME_LEN)
+            if r[0] != f[0] or r[1] != f[1]:
+                sys.exit(f"unexpected reply to 0x{f[0]:02x}: {r[:8].hex(' ')}")
+    finally:
+        os.close(fd)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Set the time on the YUNZII B75 PRO MAX display")
+    ap.add_argument("--dry-run", action="store_true", help="print the frames without sending them")
+    ap.add_argument("--at", metavar="'YYYY-MM-DD HH:MM:SS'", help="send this instant instead of the current time")
+    a = ap.parse_args()
+
+    now = datetime.fromisoformat(a.at) if a.at else datetime.now()
+    frames = time_sequence(now)
+    if a.dry_run:
+        for f in frames[:6]:
+            print(f[:16].hex(" "))
+        return
+
+    path = find_hidraw()
+    if not path:
+        print("keyboard not found", file=sys.stderr)
+        sys.exit(EXIT_NO_DEVICE)
+    send(path, frames)
+    print(f"time set: {now:%Y-%m-%d %H:%M:%S}")
+
+
+if __name__ == "__main__":
+    main()

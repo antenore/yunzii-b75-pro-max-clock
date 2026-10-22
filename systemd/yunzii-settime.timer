@@ -1,0 +1,11 @@
+[Unit]
+Description=Update the YUNZII keyboard time every day
+
+[Timer]
+OnStartupSec=2min
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
