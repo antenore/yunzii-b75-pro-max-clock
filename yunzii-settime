@@ -9,7 +9,9 @@ import select
 import sys
 from datetime import datetime
 
-VENDOR = "28E9"
+# (vendor, product) of supported keyboards, as in HID_ID. 28e9 is GigaDevice (GD32),
+# shared by many unrelated devices, so the product id must match too.
+DEVICES = {(0x28E9, 0x31C8)}
 FRAME_LEN = 64
 EXIT_NO_DEVICE = 2
 
@@ -45,15 +47,29 @@ def time_sequence(now):
     ]
 
 
+def hid_id(uevent):
+    # HID_ID=0003:000028E9:000031C8 -> (0x28E9, 0x31C8)
+    for line in uevent.splitlines():
+        if line.startswith("HID_ID="):
+            try:
+                _, vid, pid = line[7:].split(":")
+                return int(vid, 16), int(pid, 16)
+            except ValueError:
+                return None
+    return None
+
+
 def find_hidraw():
     # the right channel is the 0xFF60 vendor collection, the same one VIA uses
     for d in sorted(glob.glob("/sys/class/hidraw/hidraw*")):
         dev = os.path.join(d, "device")
         try:
-            if VENDOR not in open(os.path.join(dev, "uevent")).read().upper():
-                continue
-            if open(os.path.join(dev, "report_descriptor"), "rb").read(3) == b"\x06\x60\xff":
-                return "/dev/" + os.path.basename(d)
+            with open(os.path.join(dev, "uevent")) as f:
+                if hid_id(f.read()) not in DEVICES:
+                    continue
+            with open(os.path.join(dev, "report_descriptor"), "rb") as f:
+                if f.read(3) == b"\x06\x60\xff":
+                    return "/dev/" + os.path.basename(d)
         except OSError:
             continue
     return None

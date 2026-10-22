@@ -4,6 +4,8 @@ Sets the time on the display of the YUNZII B75 PRO MAX (USB `28e9:31c8`) from Li
 
 Unofficial project, not affiliated with YUNZII. Tested on one keyboard only, firmware 1.09, connected by cable, on Manjaro. I don't know if it works over 2.4G and Bluetooth. Use at your own risk.
 
+The script and the udev rule match both vendor and product id. `28e9` is GigaDevice (GD32) and is shared by many unrelated devices, so the vendor id alone is not enough. If your keyboard (or its 2.4G dongle) shows a different product id and you want to try it, add it to `DEVICES` in the script and to the udev rule, and please open an issue with the result.
+
 ## Install
 
 You need Python 3 (standard library only) and access to `/dev/hidraw`. The udev rule gives the ACL to the session user (`uaccess`), so no groups are needed.
@@ -28,7 +30,7 @@ yunzii-settime --at '2026-10-22 14:30:00'     # send a time of your choice
 
 To test it, send a different time with `--at` and look at the display.
 
-The timer is a user timer. It runs once a day (`OnCalendar=daily`) and once 2 minutes after the user manager starts. `Persistent=true` catches up missed runs and there is a random delay of up to 5 minutes. To change the schedule: `systemctl --user edit yunzii-settime.timer`.
+The timer is a user timer. It runs every day at 00:05, for the date change, and at 03:05, to pick up daylight saving time changes. It also runs once 2 minutes after the user manager starts. `Persistent=true` catches up missed runs and there is a random delay of up to 5 minutes. To change the schedule: `systemctl --user edit yunzii-settime.timer`.
 
 The udev rule also starts the service when the keyboard shows up, so switching a KVM back to this machine sets the time again. The service waits 3 seconds first, to let the permissions and the keyboard settle.
 

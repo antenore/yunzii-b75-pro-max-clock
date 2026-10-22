@@ -3,7 +3,8 @@ Description=Update the YUNZII keyboard time every day
 
 [Timer]
 OnStartupSec=2min
-OnCalendar=daily
+# 00:05 for the date change, 03:05 to pick up daylight saving time changes
+OnCalendar=*-*-* 00,03:05:00
 Persistent=true
 RandomizedDelaySec=5min
 
