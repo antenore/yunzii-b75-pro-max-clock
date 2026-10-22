@@ -30,6 +30,8 @@ To test it, send a different time with `--at` and look at the display.
 
 The timer is a user timer. It runs once a day (`OnCalendar=daily`) and once 2 minutes after the user manager starts. `Persistent=true` catches up missed runs and there is a random delay of up to 5 minutes. To change the schedule: `systemctl --user edit yunzii-settime.timer`.
 
+The udev rule also starts the service when the keyboard shows up, so switching a KVM back to this machine sets the time again. The service waits 3 seconds first, to let the permissions and the keyboard settle.
+
 Exit codes:
 
 - 2: keyboard not connected. The service treats it as success, so no unit goes into a failed state

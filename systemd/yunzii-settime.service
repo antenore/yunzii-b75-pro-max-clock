@@ -3,5 +3,6 @@ Description=Set the time on the YUNZII keyboard display
 
 [Service]
 Type=oneshot
+ExecStartPre=/usr/bin/sleep 3
 ExecStart=/usr/local/bin/yunzii-settime
 SuccessExitStatus=2
