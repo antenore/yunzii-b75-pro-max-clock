@@ -61,6 +61,8 @@ Everything is sent 3 times, as the site does. The keyboard answers every frame w
 
 Display images and GIFs are not implemented (same protocol, I have not read it yet). The firmware update commands, present in the same protocol, are deliberately not implemented.
 
+Everything found so far about the firmware and the display protocol, images and GIFs included, is in [hacking.md](hacking.md).
+
 ## License
 
 GPL-3.0-or-later, see `LICENSE`. Author: Antenore Gatta.
